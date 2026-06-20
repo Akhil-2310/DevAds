@@ -1,0 +1,26 @@
+:root {
+  --bg: #0a0a0f;
+  --panel: #14141c;
+  --fg: #e8e8f0;
+  --muted: #9090a8;
+  --accent: #836ef9; /* Monad purple */
+  --accent-2: #00e0b8;
+  --border: #26263a;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); }
+
+code, pre, .mono {
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Code", Menlo, monospace;
+}

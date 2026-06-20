@@ -1,0 +1,12 @@
+{
+  "name": "devads",
+  "private": true,
+  "version": "0.0.0",
+  "description": "DevAds — earn-as-you-watch coding CLI (Monad Blitz)",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "coordinator": "pnpm --filter @devads/coordinator dev",
+    "paymaster": "pnpm --filter @devads/paymaster start",
+    "cli": "pnpm --filter @devads/cli start"
+  }
+}
