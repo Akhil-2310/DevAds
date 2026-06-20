@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PaperShaderBackground } from "./components/PaperShaderBackground";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,7 +14,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <PaperShaderBackground />
+        {children}
+        <div className="font-attribution">
+          Fonts from{" "}
+          <a href="https://www.onlinewebfonts.com" target="_blank" rel="noopener noreferrer">
+            OnlineWebFonts
+          </a>
+        </div>
+      </body>
     </html>
   );
 }

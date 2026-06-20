@@ -51,11 +51,11 @@ export default function Earn() {
   };
 
   return (
-    <main style={{ minHeight: "100vh", display: "flex", justifyContent: "center", padding: "64px 24px" }}>
-      <div style={{ width: "100%", maxWidth: 680 }}>
-        <a href="/" style={{ color: "var(--muted)", textDecoration: "none", fontSize: 14 }}>← DevAds</a>
-        <h1 style={{ fontSize: 36, marginTop: 16, marginBottom: 8 }}>Earn by watching</h1>
-        <p style={{ color: "var(--muted)", marginTop: 0 }}>
+    <main className="page page--content">
+      <div className="container container--sm">
+        <a href="/" className="back-link animate-in">← DevAds</a>
+        <h1 className="page-title animate-in animate-in-delay-1">Earn by watching</h1>
+        <p className="page-desc animate-in animate-in-delay-2">
           Connect your wallet, paste one command, and start earning USDC for the ads you watch
           while you code.
         </p>
@@ -63,82 +63,42 @@ export default function Earn() {
         {!address ? (
           <button
             onClick={connect}
-            style={{
-              marginTop: 24,
-              background: "var(--accent)",
-              color: "#fff",
-              border: "none",
-              padding: "14px 28px",
-              borderRadius: 12,
-              fontWeight: 600,
-              fontSize: 16,
-              cursor: "pointer",
-            }}
+            className="btn btn-primary animate-in animate-in-delay-3"
+            style={{ marginTop: 24 }}
           >
             Connect Wallet
           </button>
         ) : (
-          <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 20 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                background: "var(--panel)",
-                border: "1px solid var(--border)",
-                borderRadius: 12,
-                padding: "14px 18px",
-              }}
-            >
-              <span className="mono" style={{ color: "var(--muted)" }}>
+          <div className="stack animate-in animate-in-delay-3" style={{ marginTop: 24 }}>
+            <div className="card wallet-bar">
+              <span className="mono card-meta">
                 {address.slice(0, 6)}…{address.slice(-4)}
               </span>
               <span>
                 earned{" "}
-                <span style={{ color: "var(--accent-2)", fontWeight: 700 }}>
+                <span className="balance-highlight">
                   {balance ?? "…"} USDC
                 </span>
               </span>
             </div>
 
             <div>
-              <div style={{ color: "var(--muted)", fontSize: 14, marginBottom: 8 }}>
+              <div className="step-label">
                 1 — Install the CLI (paste in your terminal)
               </div>
-              <div
-                style={{
-                  position: "relative",
-                  background: "#0c0c14",
-                  border: "1px solid var(--border)",
-                  borderRadius: 12,
-                  padding: "16px 18px",
-                }}
-              >
-                <code className="mono" style={{ fontSize: 13, wordBreak: "break-all", color: "#cdd2ec" }}>
-                  {cmd}
-                </code>
+              <div className="code-block">
+                <code className="mono">{cmd}</code>
                 <button
                   onClick={copy}
-                  style={{
-                    position: "absolute",
-                    top: 10,
-                    right: 10,
-                    background: copied ? "var(--accent-2)" : "var(--accent)",
-                    color: "#0a0a0f",
-                    border: "none",
-                    borderRadius: 8,
-                    padding: "6px 12px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
+                  className={`btn btn-primary btn-sm btn-copy${copied ? " is-copied" : ""}`}
                 >
                   {copied ? "Copied" : "Copy"}
                 </button>
               </div>
             </div>
 
-            <div style={{ color: "var(--muted)", fontSize: 14 }}>
-              2 — Run <span className="mono" style={{ color: "#cdd2ec" }}>devads</span> and start
+            <div className="step-text">
+              2 — Run <span className="mono">devads</span> and start
               coding. Ads play between turns; your balance above updates as the paymaster settles
               each watch on Monad.
             </div>

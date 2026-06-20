@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@devads/shared": "workspace:*",
+    "@paper-design/shaders-react": "^0.0.76",
     "@supabase/supabase-js": "^2.45.0",
     "@x402/core": "^2.16.0",
     "@x402/evm": "^2.16.0",

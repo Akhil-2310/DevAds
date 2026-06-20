@@ -16,3 +16,4 @@ apps/coordinator/data/
 .DS_Store
 .vercel
 .env*.local
+.pnpm-store/
