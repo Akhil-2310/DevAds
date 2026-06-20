@@ -1,0 +1,17 @@
+{
+  "name": "devads",
+  "version": "0.1.0",
+  "description": "Ad-funded coding CLI — watch ads, earn USDC on Monad, code on us. No API key needed.",
+  "type": "module",
+  "bin": { "devads": "devads.mjs" },
+  "files": ["devads.mjs", "README.md"],
+  "engines": { "node": ">=18" },
+  "keywords": ["cli", "ai", "coding-agent", "x402", "monad", "usdc", "ads"],
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/Akhil-2310/DevAds" },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.69.0",
+    "viem": "^2.53.1",
+    "zod": "^4.0.0"
+  }
+}
