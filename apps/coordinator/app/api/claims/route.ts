@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const status = req.nextUrl.searchParams.get("status") as ClaimStatus | null;
-  return NextResponse.json(listClaims(status ?? undefined));
+  return NextResponse.json(await listClaims(status ?? undefined));
 }
 
 export async function POST(req: NextRequest) {
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  const result = createClaim(
+  const result = await createClaim(
     body.adId,
     body.consumerWallet as Address,
     body.sessionNonce,

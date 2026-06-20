@@ -6,9 +6,13 @@ out/
 .env
 .env.local
 .env.*.local
+.supabase-db-password
+supabase/.temp/
 __pycache__/
 *.pyc
 .devads/
 apps/coordinator/uploads/
 apps/coordinator/data/
 .DS_Store
+.vercel
+.env*.local

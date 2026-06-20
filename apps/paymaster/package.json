@@ -6,11 +6,11 @@
   "scripts": {
     "smoke": "node --env-file=../../.env --import tsx src/smoke.ts",
     "start": "node --env-file=../../.env --import tsx src/index.ts",
+    "start:container": "node --import tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@devads/shared": "workspace:*",
-    "@anthropic-ai/claude-agent-sdk": "^0.3.183",
     "@x402/core": "^2.16.0",
     "@x402/evm": "^2.16.0",
     "@x402/fetch": "^2.16.0",
