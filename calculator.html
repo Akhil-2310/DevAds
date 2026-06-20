@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    font-family: 'Segoe UI', Arial, sans-serif;
+  }
+  .calculator {
+    background: #1c1c1e;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    width: 320px;
+  }
+  .display {
+    background: #000;
+    color: #fff;
+    font-size: 2.5rem;
+    text-align: right;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+    min-height: 80px;
+    word-wrap: break-word;
+    word-break: break-all;
+    overflow: hidden;
+  }
+  .buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  button {
+    border: none;
+    border-radius: 50%;
+    height: 65px;
+    font-size: 1.4rem;
+    cursor: pointer;
+    background: #333;
+    color: #fff;
+    transition: filter 0.15s;
+  }
+  button:hover { filter: brightness(1.2); }
+  button:active { filter: brightness(0.85); }
+  .operator { background: #ff9500; }
+  .function { background: #a5a5a5; color: #000; }
+  .zero { grid-column: span 2; border-radius: 32px; }
+  .equals { background: #ff9500; }
+</style>
+</head>
+<body>
+  <div class="calculator">
+    <div class="display" id="display">0</div>
+    <div class="buttons">
+      <button class="function" onclick="clearAll()">AC</button>
+      <button class="function" onclick="toggleSign()">+/-</button>
+      <button class="function" onclick="percent()">%</button>
+      <button class="operator" onclick="appendOperator('/')">÷</button>
+
+      <button onclick="appendNumber('7')">7</button>
+      <button onclick="appendNumber('8')">8</button>
+      <button onclick="appendNumber('9')">9</button>
+      <button class="operator" onclick="appendOperator('*')">×</button>
+
+      <button onclick="appendNumber('4')">4</button>
+      <button onclick="appendNumber('5')">5</button>
+      <button onclick="appendNumber('6')">6</button>
+      <button class="operator" onclick="appendOperator('-')">−</button>
+
+      <button onclick="appendNumber('1')">1</button>
+      <button onclick="appendNumber('2')">2</button>
+      <button onclick="appendNumber('3')">3</button>
+      <button class="operator" onclick="appendOperator('+')">+</button>
+
+      <button class="zero" onclick="appendNumber('0')">0</button>
+      <button onclick="appendDecimal()">.</button>
+      <button class="equals" onclick="calculate()">=</button>
+    </div>
+  </div>
+
+<script>
+  const display = document.getElementById('display');
+  let current = '0';
+  let previous = null;
+  let operator = null;
+  let resetNext = false;
+
+  function updateDisplay() {
+    display.textContent = current;
+  }
+
+  function appendNumber(num) {
+    if (current === '0' || resetNext) {
+      current = num;
+      resetNext = false;
+    } else {
+      current += num;
+    }
+    updateDisplay();
+  }
+
+  function appendDecimal() {
+    if (resetNext) { current = '0'; resetNext = false; }
+    if (!current.includes('.')) current += '.';
+    updateDisplay();
+  }
+
+  function appendOperator(op) {
+    if (operator !== null && !resetNext) calculate();
+    previous = current;
+    operator = op;
+    resetNext = true;
+  }
+
+  function calculate() {
+    if (operator === null || resetNext) return;
+    const a = parseFloat(previous);
+    const b = parseFloat(current);
+    let result;
+    switch (operator) {
+      case '+': result = a + b; break;
+      case '-': result = a - b; break;
+      case '*': result = a * b; break;
+      case '/': result = b === 0 ? 'Error' : a / b; break;
+    }
+    current = String(result);
+    operator = null;
+    previous = null;
+    resetNext = true;
+    updateDisplay();
+  }
+
+  function clearAll() {
+    current = '0';
+    previous = null;
+    operator = null;
+    resetNext = false;
+    updateDisplay();
+  }
+
+  function toggleSign() {
+    current = String(parseFloat(current) * -1);
+    updateDisplay();
+  }
+
+  function percent() {
+    current = String(parseFloat(current) / 100);
+    updateDisplay();
+  }
+
+  // Keyboard support
+  document.addEventListener('keydown', (e) => {
+    if (e.key >= '0' && e.key <= '9') appendNumber(e.key);
+    else if (e.key === '.') appendDecimal();
+    else if (['+','-','*','/'].includes(e.key)) appendOperator(e.key);
+    else if (e.key === 'Enter' || e.key === '=') calculate();
+    else if (e.key === 'Escape') clearAll();
+  });
+</script>
+</body>
+</html>

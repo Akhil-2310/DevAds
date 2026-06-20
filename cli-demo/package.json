@@ -1,0 +1,13 @@
+{
+  "name": "devads-democli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": { "devads-demo": "index.mjs" },
+  "scripts": {
+    "start": "node --env-file=../.env index.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.69.0"
+  }
+}

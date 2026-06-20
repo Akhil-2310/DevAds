@@ -11,8 +11,12 @@ type Ad = {
   clickUrl: string;
 };
 
+const protocolWallet = process.env.NEXT_PUBLIC_ADDRESS_OF_PROTOCOL;
+
 export default function Advertise() {
   const [ads, setAds] = useState<Ad[]>([]);
+  const [video, setVideo] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
     title: "",
     clickUrl: "",
@@ -30,13 +34,18 @@ export default function Advertise() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetch("/api/ads", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setForm({ ...form, title: "", clickUrl: "" });
-    refresh();
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      Object.entries(form).forEach(([k, v]) => fd.append(k, String(v)));
+      if (video) fd.append("video", video);
+      await fetch("/api/ads", { method: "POST", body: fd });
+      setForm({ ...form, title: "", clickUrl: "" });
+      setVideo(null);
+      refresh();
+    } finally {
+      setBusy(false);
+    }
   };
 
   const field: React.CSSProperties = {
@@ -54,9 +63,20 @@ export default function Advertise() {
         <a href="/" style={{ color: "var(--muted)", textDecoration: "none", fontSize: 14 }}>← DevAds</a>
         <h1 style={{ fontSize: 36, marginTop: 16, marginBottom: 8 }}>Advertise</h1>
         <p style={{ color: "var(--muted)", marginTop: 0 }}>
-          Launch a campaign. The autonomous paymaster pays each verified watch from your funded
-          wallet over x402 — no clicks, no humans.
+          Launch a campaign. The autonomous paymaster pays each verified watch from the
+          protocol wallet over x402 — no clicks, no humans.
         </p>
+
+        {protocolWallet && (
+          <div style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 18px", marginTop: 20 }}>
+            <div style={{ color: "var(--muted)", fontSize: 13 }}>
+              Fund your campaign: send your budget in USDC (Monad testnet) to the protocol wallet
+            </div>
+            <div className="mono" style={{ marginTop: 6, wordBreak: "break-all", fontWeight: 600 }}>
+              {protocolWallet}
+            </div>
+          </div>
+        )}
 
         <form onSubmit={submit} style={{ display: "grid", gap: 12, marginTop: 24 }}>
           <input
@@ -77,14 +97,24 @@ export default function Advertise() {
             <input style={field} type="number" placeholder="Duration s" value={form.durationSec} onChange={(e) => setForm({ ...form, durationSec: Number(e.target.value) })} />
             <input style={field} type="number" placeholder="Budget $" value={form.budget} onChange={(e) => setForm({ ...form, budget: Number(e.target.value) })} />
           </div>
+          <label style={{ color: "var(--muted)", fontSize: 13, display: "grid", gap: 6 }}>
+            Ad video (mp4 / webm)
+            <input
+              style={{ ...field, padding: 8 }}
+              type="file"
+              accept="video/mp4,video/webm,video/quicktime"
+              onChange={(e) => setVideo(e.target.files?.[0] ?? null)}
+            />
+          </label>
           <button
             type="submit"
-            style={{ background: "var(--accent)", color: "#fff", border: "none", padding: "12px 24px", borderRadius: 10, fontWeight: 600, cursor: "pointer", justifySelf: "start" }}
+            disabled={busy}
+            style={{ background: "var(--accent)", color: "#fff", border: "none", padding: "12px 24px", borderRadius: 10, fontWeight: 600, cursor: busy ? "wait" : "pointer", justifySelf: "start", opacity: busy ? 0.6 : 1 }}
           >
-            Create campaign
+            {busy ? "Uploading…" : "Create campaign"}
           </button>
           <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>
-            Note: upload the ad mp4 to <span className="mono">uploads/&lt;id&gt;.mp4</span> (demo seeds one).
+            The video is stored in Supabase Storage and streamed to viewers in their terminal.
           </p>
         </form>
 

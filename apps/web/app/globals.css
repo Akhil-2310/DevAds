@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #08090c;
+  color: #e6e8ee;
+}
+
+* {
+  border-color: theme("colors.line");
+}
+
+::selection {
+  background: rgba(204, 107, 61, 0.32);
+}
+
+/* Thin, premium scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #242833;
+  border-radius: 999px;
+  border: 2px solid #08090c;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #303542;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-bg-panel;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-black hover:bg-brand-soft;
+  }
+  .btn-ghost {
+    @apply btn border border-line bg-bg-elevated text-zinc-200 hover:border-zinc-600 hover:bg-bg-soft;
+  }
+  .input {
+    @apply w-full rounded-lg border border-line bg-bg-soft px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-brand/60;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-400;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full border border-line bg-bg-elevated px-2.5 py-0.5 text-xs font-medium text-zinc-300;
+  }
+  .stat-value {
+    @apply text-2xl font-semibold tracking-tight text-zinc-50;
+  }
+  .grid-bg {
+    background-image: radial-gradient(
+        circle at 1px 1px,
+        rgba(255, 255, 255, 0.04) 1px,
+        transparent 0
+      );
+    background-size: 28px 28px;
+  }
+}
+
+/* Markdown / prose styling for chat */
+.prose-chat {
+  @apply text-[15px] leading-relaxed text-zinc-200;
+}
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3 {
+  @apply mb-2 mt-4 font-semibold text-zinc-50;
+}
+.prose-chat h1 {
+  @apply text-xl;
+}
+.prose-chat h2 {
+  @apply text-lg;
+}
+.prose-chat h3 {
+  @apply text-base;
+}
+.prose-chat p {
+  @apply my-2.5;
+}
+.prose-chat ul {
+  @apply my-2.5 list-disc space-y-1 pl-5;
+}
+.prose-chat ol {
+  @apply my-2.5 list-decimal space-y-1 pl-5;
+}
+.prose-chat a {
+  @apply text-accent underline underline-offset-2;
+}
+.prose-chat blockquote {
+  @apply my-3 border-l-2 border-brand/50 bg-bg-soft py-1 pl-3 text-zinc-400;
+}
+.prose-chat code:not(pre code) {
+  @apply rounded bg-bg-elevated px-1.5 py-0.5 font-mono text-[13px] text-brand-soft;
+}
+.prose-chat pre {
+  @apply my-3 overflow-hidden rounded-lg border border-line;
+}
+.prose-chat table {
+  @apply my-3 w-full border-collapse text-sm;
+}
+.prose-chat th,
+.prose-chat td {
+  @apply border border-line px-3 py-1.5 text-left;
+}

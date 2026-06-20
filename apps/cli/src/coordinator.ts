@@ -7,6 +7,12 @@ export async function fetchNextAd(): Promise<ServedAd | null> {
   return (await res.json()) as ServedAd;
 }
 
+export async function fetchClaim(id: string): Promise<Claim | null> {
+  const res = await fetch(`${COORDINATOR_URL}/api/claims/${id}`);
+  if (!res.ok) return null;
+  return (await res.json()) as Claim;
+}
+
 export async function postClaim(ad: ServedAd, wallet: Address): Promise<Claim> {
   const res = await fetch(`${COORDINATOR_URL}/api/claims`, {
     method: "POST",

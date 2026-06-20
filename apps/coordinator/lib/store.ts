@@ -1,54 +1,50 @@
-import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Ad, Claim, ClaimStatus, Address, ServedAd } from "@devads/shared";
+import { db } from "./supabase";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DB_FILE = path.join(DATA_DIR, "db.json");
+// Kept for the local-file fallback in the video route until Phase 3 moves
+// uploads to Supabase Storage.
 export const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 
-type DB = { ads: Ad[]; claims: Claim[] };
+const CREDITS_PER_VIEW = Number(process.env.CREDITS_PER_VIEW ?? 10);
 
-// Seeded demo campaign. Its video lives at uploads/demo-ad.mp4 (copied from the
-// videoterminal sample). Reward is a small x402 price so a funded wallet lasts.
-const DEMO_AD: Ad = {
-  id: "demo-ad",
-  title: "BLD — ship onchain",
-  videoUrl: "/api/ads/demo-ad/video",
-  clickUrl: "https://monad.xyz",
-  reward: process.env.DEFAULT_REWARD ?? "$0.01",
-  durationSec: 8,
-  budgetRemaining: 5,
-  advertiser: "0x000000000000000000000000000000000000dEaD",
-};
+const dollars = (reward: string): number => Number(reward.replace("$", "")) || 0;
+const toReward = (n: number): string => `$${n}`;
 
-function load(): DB {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(DB_FILE)) {
-    const seed: DB = { ads: [DEMO_AD], claims: [] };
-    fs.writeFileSync(DB_FILE, JSON.stringify(seed, null, 2));
-    return seed;
-  }
-  return JSON.parse(fs.readFileSync(DB_FILE, "utf8")) as DB;
+/** Map a joined Ad+Campaign(+Advertiser→User) row to the shared Ad shape. */
+function mapAd(row: any): Ad {
+  const camp = row.Campaign ?? {};
+  const wallet: Address =
+    camp.Advertiser?.User?.walletAddress ??
+    "0x0000000000000000000000000000000000000000";
+  return {
+    id: row.id,
+    title: row.title,
+    videoUrl: `/api/ads/${row.id}/video`,
+    clickUrl: row.ctaUrl ?? "",
+    reward: toReward(Number(camp.rewardPerView ?? 0)),
+    durationSec: row.durationSec ?? 8,
+    budgetRemaining: Number(camp.budget ?? 0) - Number(camp.spent ?? 0),
+    advertiser: wallet,
+  };
 }
 
-function save(db: DB) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+const AD_SELECT =
+  "id, title, durationSec, ctaUrl, mediaUrl, Campaign(status, budget, spent, rewardPerView, Advertiser(User(walletAddress)))";
+
+export async function listAds(): Promise<Ad[]> {
+  const { data, error } = await db.from("Ad").select(AD_SELECT);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapAd);
 }
 
-function rewardToDollars(reward: string): number {
-  return Number(reward.replace("$", "")) || 0;
+export async function getAd(id: string): Promise<Ad | undefined> {
+  const { data } = await db.from("Ad").select(AD_SELECT).eq("id", id).single();
+  return data ? mapAd(data) : undefined;
 }
 
-export function listAds(): Ad[] {
-  return load().ads;
-}
-
-export function getAd(id: string): Ad | undefined {
-  return load().ads.find((a) => a.id === id);
-}
-
-export function createAd(input: {
+export async function createAd(input: {
   id?: string;
   title: string;
   clickUrl: string;
@@ -56,72 +52,170 @@ export function createAd(input: {
   durationSec: number;
   budgetRemaining: number;
   advertiser: Address;
-}): Ad {
-  const db = load();
-  const id = input.id ?? randomUUID().slice(0, 8);
-  const ad: Ad = {
-    id,
-    title: input.title,
-    videoUrl: `/api/ads/${id}/video`,
-    clickUrl: input.clickUrl,
-    reward: input.reward,
-    durationSec: input.durationSec,
-    budgetRemaining: input.budgetRemaining,
-    advertiser: input.advertiser,
+}): Promise<Ad> {
+  // Ensure the advertiser User + Advertiser rows exist.
+  const { data: userId, error: uErr } = await db.rpc("ensure_user", {
+    p_wallet: input.advertiser,
+    p_role: "ADVERTISER",
+  });
+  if (uErr) throw new Error(uErr.message);
+
+  const { data: adv, error: aErr } = await db
+    .from("Advertiser")
+    .upsert({ userId, companyName: input.advertiser }, { onConflict: "userId" })
+    .select("id")
+    .single();
+  if (aErr) throw new Error(aErr.message);
+
+  const { data: camp, error: cErr } = await db
+    .from("Campaign")
+    .insert({
+      advertiserId: adv.id,
+      name: input.title,
+      status: "ACTIVE",
+      budget: input.budgetRemaining,
+      rewardPerView: dollars(input.reward),
+    })
+    .select("id")
+    .single();
+  if (cErr) throw new Error(cErr.message);
+
+  const { data: ad, error: adErr } = await db
+    .from("Ad")
+    .insert({
+      campaignId: camp.id,
+      type: "VIDEO",
+      title: input.title,
+      mediaUrl: "", // Phase 3: Supabase Storage object path
+      durationSec: input.durationSec,
+      ctaUrl: input.clickUrl,
+    })
+    .select(AD_SELECT)
+    .single();
+  if (adErr) throw new Error(adErr.message);
+  return mapAd(ad);
+}
+
+/** Pick the next ACTIVE ad with budget left and attach a fresh anti-replay nonce. */
+export async function nextAd(): Promise<ServedAd | undefined> {
+  const { data, error } = await db.from("Ad").select(AD_SELECT);
+  if (error) throw new Error(error.message);
+  const eligible = (data ?? []).filter((r: any) => {
+    const c = r.Campaign;
+    return (
+      c?.status === "ACTIVE" &&
+      Number(c.budget) - Number(c.spent) >= Number(c.rewardPerView)
+    );
+  });
+  // Prefer an ad that actually has an uploaded video; fall back to any eligible.
+  const row = eligible.find((r: any) => r.mediaUrl && r.mediaUrl.length > 0) ?? eligible[0];
+  if (!row) return undefined;
+  return { ...mapAd(row), sessionNonce: randomUUID() };
+}
+
+/** Map an AdView row (joined to its viewer) to the shared Claim shape. */
+function mapClaim(row: any): Claim {
+  return {
+    id: row.id,
+    adId: row.adId,
+    consumerWallet: row.User?.walletAddress as Address,
+    sessionNonce: row.proofToken,
+    reward: toReward(Number(row.rewardAmount ?? 0)),
+    status: row.payoutStatus === "PAID" ? "paid" : "pending",
+    createdAt: row.startedAt ? Date.parse(row.startedAt) : Date.now(),
+    txHash: row.txHash ?? undefined,
   };
-  db.ads.push(ad);
-  save(db);
-  return ad;
 }
 
-/** Pick the next ad with budget left and attach a fresh anti-replay nonce. */
-export function nextAd(): ServedAd | undefined {
-  const ad = load().ads.find((a) => a.budgetRemaining > 0);
-  if (!ad) return undefined;
-  return { ...ad, sessionNonce: randomUUID() };
-}
+const CLAIM_SELECT =
+  "id, adId, proofToken, rewardAmount, payoutStatus, txHash, startedAt, User(walletAddress)";
 
-export function createClaim(
+export async function createClaim(
   adId: string,
   consumerWallet: Address,
   sessionNonce: string,
-): Claim | { error: string } {
-  const db = load();
-  const ad = db.ads.find((a) => a.id === adId);
-  if (!ad) return { error: "unknown ad" };
-  if (ad.budgetRemaining <= 0) return { error: "campaign out of budget" };
-  const claim: Claim = {
-    id: randomUUID(),
-    adId,
-    consumerWallet,
-    sessionNonce,
-    reward: ad.reward,
+): Promise<Claim | { error: string }> {
+  const { data, error } = await db.rpc("record_claim", {
+    p_ad_id: adId,
+    p_wallet: consumerWallet,
+    p_nonce: sessionNonce,
+    p_credits: CREDITS_PER_VIEW,
+  });
+  if (error) return { error: error.message };
+  if (data?.error) return { error: data.error };
+  return {
+    id: data.id,
+    adId: data.adId,
+    consumerWallet: data.consumerWallet,
+    sessionNonce: data.sessionNonce,
+    reward: toReward(Number(data.rewardAmount)),
     status: "pending",
-    createdAt: Date.now(),
+    createdAt: Number(data.createdAt),
   };
-  db.claims.push(claim);
-  save(db);
-  return claim;
 }
 
-export function listClaims(status?: ClaimStatus): Claim[] {
-  const claims = load().claims;
-  return status ? claims.filter((c) => c.status === status) : claims;
+export async function listClaims(status?: ClaimStatus): Promise<Claim[]> {
+  let q = db.from("AdView").select(CLAIM_SELECT);
+  if (status === "pending") q = q.eq("payoutStatus", "PENDING");
+  else if (status === "paid") q = q.eq("payoutStatus", "PAID");
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapClaim);
 }
 
-export function getClaim(id: string): Claim | undefined {
-  return load().claims.find((c) => c.id === id);
+export async function getClaim(id: string): Promise<Claim | undefined> {
+  const { data } = await db
+    .from("AdView")
+    .select(CLAIM_SELECT)
+    .eq("id", id)
+    .single();
+  return data ? mapClaim(data) : undefined;
 }
 
-/** Mark a claim paid and draw down the campaign budget. */
-export function markClaimPaid(id: string, txHash?: string): Claim | undefined {
-  const db = load();
-  const claim = db.claims.find((c) => c.id === id);
-  if (!claim) return undefined;
-  claim.status = "paid";
-  if (txHash) claim.txHash = txHash;
-  const ad = db.ads.find((a) => a.id === claim.adId);
-  if (ad) ad.budgetRemaining = Math.max(0, ad.budgetRemaining - rewardToDollars(claim.reward));
-  save(db);
-  return claim;
+const BUCKET = "ads";
+
+/** Upload an ad's video to Supabase Storage and point the Ad row at it. */
+export async function uploadAdVideo(
+  id: string,
+  bytes: Buffer | ArrayBuffer,
+  contentType: string,
+): Promise<void> {
+  const objectPath = `${id}.mp4`;
+  const { error } = await db.storage
+    .from(BUCKET)
+    .upload(objectPath, bytes, { contentType, upsert: true });
+  if (error) throw new Error(error.message);
+  const { error: uErr } = await db.from("Ad").update({ mediaUrl: objectPath }).eq("id", id);
+  if (uErr) throw new Error(uErr.message);
+}
+
+/** Fetch an ad's video bytes from Storage; null if not uploaded yet. */
+export async function getAdVideo(
+  id: string,
+): Promise<{ bytes: Buffer; contentType: string } | null> {
+  const { data, error } = await db.storage.from(BUCKET).download(`${id}.mp4`);
+  if (error || !data) return null;
+  return {
+    bytes: Buffer.from(await data.arrayBuffer()),
+    contentType: data.type || "video/mp4",
+  };
+}
+
+/** Record the on-chain settlement tx hash on a claim (after x402 settles). */
+export async function setClaimTx(id: string, txHash: string): Promise<void> {
+  await db.from("AdView").update({ txHash }).eq("id", id);
+  await db.from("Reward").update({ txHash }).eq("adViewId", id);
+}
+
+/** Mark a claim paid + run the settlement ledger. Returns the updated claim. */
+export async function markClaimPaid(
+  id: string,
+  txHash?: string,
+): Promise<Claim | undefined> {
+  const { error } = await db.rpc("settle_claim", {
+    p_view_id: id,
+    p_tx: txHash ?? null,
+  });
+  if (error) throw new Error(error.message);
+  return getClaim(id);
 }

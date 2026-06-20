@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withX402, type RouteConfig } from "@x402/next";
 import { x402Server, MONAD_NETWORK } from "@/lib/x402-server";
-import { getClaim, markClaimPaid } from "@/lib/store";
+import { getClaim, markClaimPaid, setClaimTx } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const claim = getClaim(id);
+  const claim = await getClaim(id);
   if (!claim) return NextResponse.json({ error: "unknown claim" }, { status: 404 });
   if (claim.status === "paid") {
     return NextResponse.json({ error: "already paid" }, { status: 409 });
@@ -36,7 +36,7 @@ export async function GET(
     async () => {
       // Reaching the handler means the payment was verified; withX402 settles
       // after this returns < 400. Mark paid here (demo-acceptable optimism).
-      markClaimPaid(id);
+      await markClaimPaid(id);
       return NextResponse.json({
         proof: { claimId: id, adId: claim.adId, paidTo: claim.consumerWallet },
       });
@@ -45,5 +45,18 @@ export async function GET(
     x402Server,
   );
 
-  return wrapped(req);
+  const res = await wrapped(req);
+
+  // After settlement, x402 sets x-payment-response (base64 JSON with the tx
+  // hash). Persist it so the CLI can show the viewer their payout tx link.
+  const header = res.headers.get("x-payment-response") ?? res.headers.get("payment-response");
+  if (header) {
+    try {
+      const decoded = JSON.parse(Buffer.from(header, "base64").toString("utf8"));
+      if (decoded.transaction) await setClaimTx(id, decoded.transaction);
+    } catch {
+      /* non-JSON header — ignore */
+    }
+  }
+  return res;
 }
